@@ -1,6 +1,6 @@
 all:
 	obuild configure
-	obuild build lib-ptset
+	obuild build lib-ptmap
 
 test:
 	obuild configure
@@ -9,13 +9,13 @@ test:
 
 doc:
 	mkdir -p doc
-	ocamldoc -d doc/ -html ptset.mli
+	ocamldoc -d doc/ -html ptmap.mli
 
 install: all
 	obuild install
 
 uninstall:
-	ocamlfind -remove ptset
+	ocamlfind -remove ptmap
 
 clean:
 	obuild clean

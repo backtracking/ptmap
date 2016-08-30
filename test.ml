@@ -12,7 +12,7 @@ let test empty add mem =
   Random.init seed;
   let s =
     let rec loop s i =
-      if i = 1000 then s else loop (add (Random.int max_int) s) (succ i)
+      if i = 1000 then s else loop (add (Random.int max_int) true s) (succ i)
     in
     loop empty 0
   in
@@ -20,8 +20,6 @@ let test empty add mem =
   for i = 0 to 999 do assert (mem (Random.int max_int) s) done
 
 let main () =
-  test Ptset.empty Ptset.add Ptset.mem;
-  test Ptset.Big.empty Ptset.Big.add Ptset.Big.mem;
-  test Ptset.BigPos.empty Ptset.BigPos.add Ptset.BigPos.mem
+  test Ptmap.empty Ptmap.add Ptmap.mem
 
 let () = main ()
