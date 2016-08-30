@@ -100,6 +100,15 @@ let rec iter f = function
   | Leaf (k,x) -> f k x
   | Branch (_,_,t0,t1) -> iter f t0; iter f t1
 
+(* FBR: add test *)
+let rec choose = function
+  | Empty -> raise Not_found
+  | Leaf (k,v) -> (k,v)
+  | Branch (_,_,t0,t1) ->
+    try choose t0
+    with Not_found ->
+      choose t1
+
 let rec map f = function
   | Empty -> Empty
   | Leaf (k,x) -> Leaf (k, f x)
@@ -114,6 +123,116 @@ let rec fold f s accu = match s with
   | Empty -> accu
   | Leaf (k,x) -> f k x accu
   | Branch (_,_,t0,t1) -> fold f t0 (fold f t1 accu)
+
+(* FBR: add test *)
+let max_binding m =
+  let init = choose m in
+  fold (fun k' v' ((k, v) as acc) ->
+      if k' > k then
+        (k', v')
+      else
+        acc
+    ) m init
+
+(* FBR: add test *)
+let min_binding m =
+  let init = choose m in
+  fold (fun k' v' ((k, v) as acc) ->
+      if k' < k then
+        (k', v')
+      else
+        acc
+    ) m init
+
+(* FBR: add test *)
+let bindings m =
+  fold (fun k v acc ->
+      (k, v) :: acc
+    ) m []
+
+(* FBR: add test *)
+let cardinal m =
+  fold (fun _k _v acc ->
+      acc + 1
+    ) m 0
+
+let singleton k v =
+  add k v empty
+
+let find_opt k m =
+  try Some (find k m)
+  with Not_found -> None
+
+(* FBR: add test *)
+let merge f mx my =
+  let mx_keys = List.rev_map fst (bindings mx) in
+  let my_keys = List.rev_map fst (bindings my) in
+  let unique_keys = List.sort_uniq (-) (List.rev_append mx_keys my_keys) in
+  List.fold_left (fun acc k ->
+      let maybe_vx = find_opt k mx in
+      let maybe_vy = find_opt k my in
+      match f k maybe_vx maybe_vy with
+      | None -> acc
+      | Some z -> add k z acc
+    ) empty unique_keys
+
+(* FBR: add test *)
+let union f mx my =
+  let mx_keys = List.rev_map fst (bindings mx) in
+  let my_keys = List.rev_map fst (bindings my) in
+  let unique_keys = List.sort_uniq (-) (List.rev_append mx_keys my_keys) in
+  List.fold_left (fun acc k ->
+      let maybe_vx = find_opt k mx in
+      let maybe_vy = find_opt k my in
+      match maybe_vx, maybe_vy with
+      | None, None -> assert(false)
+      | None, Some vy -> add k vy acc
+      | Some vx, None -> add k vx acc
+      | Some vx, Some vy ->
+        match f k vx vy with
+        | None -> acc
+        | Some vz -> add k vz acc
+    ) empty unique_keys
+
+(* FBR: add test *)
+let partition p m =
+  fold (fun k v (acc_yes, acc_no) ->
+      if p k v then
+        (add k v acc_yes, acc_no)
+      else
+        (acc_yes, add k v acc_no)
+    ) m (empty, empty)
+
+(* FBR: add test *)
+let filter p m =
+  fold (fun k v acc ->
+      if p k v then
+        add k v acc
+      else
+        acc
+    ) m empty
+
+exception Found
+
+(* FBR: add test *)
+let exists p m =
+  try
+    iter (fun k v ->
+        if p k v then raise Found
+        else ()
+      ) m;
+    false
+  with Found -> true
+
+(* FBR: add test *)
+let for_all p m =
+  try
+    iter (fun k v ->
+        if not (p k v) then raise Found
+        else ()
+      ) m;
+    true
+  with Found -> false
 
 (* we order constructors as Empty < Leaf < Branch *)
 let compare cmp t1 t2 =

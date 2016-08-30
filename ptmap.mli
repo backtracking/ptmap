@@ -46,3 +46,29 @@ val fold : (int -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
 val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
 
 val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+
+(* functions that must be present to be a drop-in replacement for the stdlib *)
+
+val singleton : key -> 'a -> 'a t
+
+val merge : (key -> 'a option -> 'b option -> 'c option) -> 'a t -> 'b t -> 'c t
+
+val union : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
+
+val for_all : (key -> 'a -> bool) -> 'a t -> bool
+
+val exists : (key -> 'a -> bool) -> 'a t -> bool
+
+val filter : (key -> 'a -> bool) -> 'a t -> 'a t
+
+val partition : (key -> 'a -> bool) -> 'a t -> 'a t * 'a t
+
+val cardinal : 'a t -> int
+
+val bindings : 'a t -> (key * 'a) list
+
+val min_binding : 'a t -> key * 'a
+
+val max_binding : 'a t -> key * 'a
+
+val choose : 'a t -> key * 'a
