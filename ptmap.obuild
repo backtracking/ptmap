@@ -1,0 +1,18 @@
+Name: ptset
+Version: 1.0
+Authors: Jean-Christophe Filliâtre
+License: GPL-2.1
+Synopsis: Sets of integers implemented as Patricia trees
+obuild-ver: 1
+
+# -bin-annot isn't supported by OCaml 3.12.1
+#  oflags: -warn-error PU -bin-annot
+Library ptset
+  oflags: -warn-error PU
+  src-dir: .
+  modules: Ptset
+
+Executable test
+  oflags: -warn-error PU
+  src-dir: .
+  main-is: test.ml
