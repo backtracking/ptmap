@@ -16,3 +16,9 @@ Executable test
   oflags: -warn-error PU
   src-dir: .
   main-is: test.ml
+
+Executable unit_tests
+  oflags: -warn-error PU
+  src-dir: .
+  main-is: unit_tests.ml
+  build-deps: QTest2Lib
