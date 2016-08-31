@@ -100,7 +100,6 @@ let rec iter f = function
   | Leaf (k,x) -> f k x
   | Branch (_,_,t0,t1) -> iter f t0; iter f t1
 
-(* FBR: add test *)
 let rec choose = function
   | Empty -> raise Not_found
   | Leaf (k,v) -> (k,v)
@@ -108,6 +107,10 @@ let rec choose = function
     try choose t0
     with Not_found ->
       choose t1
+(*$T choose
+  try let _ = choose empty in false with Not_found -> true
+  choose (add 1 true empty) = (1, true)
+*)
 
 let rec map f = function
   | Empty -> Empty
@@ -124,7 +127,14 @@ let rec fold f s accu = match s with
   | Leaf (k,x) -> f k x accu
   | Branch (_,_,t0,t1) -> fold f t0 (fold f t1 accu)
 
-(* FBR: add test *)
+(* utility fun for unit tests *)
+(*$inject
+  let of_list l =
+    List.fold_left (fun acc (k, v) ->
+      add k v acc
+    ) empty l
+*)
+
 let max_binding m =
   let init = choose m in
   fold (fun k' v' ((k, v) as acc) ->
@@ -133,8 +143,11 @@ let max_binding m =
       else
         acc
     ) m init
+(*$T max_binding
+  (try let _ = max_binding empty in false with Not_found -> true) = true
+  max_binding (of_list [(-1,false); (5,true); (0,false)]) = (5,true)
+*)
 
-(* FBR: add test *)
 let min_binding m =
   let init = choose m in
   fold (fun k' v' ((k, v) as acc) ->
@@ -143,18 +156,29 @@ let min_binding m =
       else
         acc
     ) m init
+(*$T min_binding
+  (try let _ = min_binding empty in false with Not_found -> true) = true
+  min_binding (of_list [(-1,false); (5,true); (0,false)]) = (-1,false)
+*)
 
-(* FBR: add test *)
 let bindings m =
   fold (fun k v acc ->
       (k, v) :: acc
     ) m []
+(*$T bindings
+  bindings empty = []
+  List.sort Pervasives.compare (bindings (of_list [(-1,false); (5,true); (0,false)])) = \
+    [(-1,false); (0,false); (5,true)]
+*)
 
-(* FBR: add test *)
 let cardinal m =
   fold (fun _k _v acc ->
       acc + 1
     ) m 0
+(*$T cardinal
+  cardinal empty = 0
+  cardinal (of_list [(-1,false); (5,true); (0,false)]) = 3
+*)
 
 let singleton k v =
   add k v empty
@@ -163,7 +187,7 @@ let find_opt k m =
   try Some (find k m)
   with Not_found -> None
 
-(* FBR: add test *)
+(* FBR: probably far from optimal algorithm *)
 let merge f mx my =
   let mx_keys = List.rev_map fst (bindings mx) in
   let my_keys = List.rev_map fst (bindings my) in
@@ -175,8 +199,15 @@ let merge f mx my =
       | None -> acc
       | Some z -> add k z acc
     ) empty unique_keys
+(*$T merge
+  let l1 = [(-1,-1); (0,0); (5,4)] in \
+  let l2 = [(5,5)] in \
+  let l3 = [(-1,-1); (0,0); (5,5)] in \
+  equal (=) (of_list l3) \
+    (merge (fun _k x y -> max x y) (of_list l1) (of_list l2))
+*)
 
-(* FBR: add test *)
+(* FBR: probably far from optimal algorithm *)
 let union f mx my =
   let mx_keys = List.rev_map fst (bindings mx) in
   let my_keys = List.rev_map fst (bindings my) in
@@ -193,8 +224,16 @@ let union f mx my =
         | None -> acc
         | Some vz -> add k vz acc
     ) empty unique_keys
+(*$T union
+  let l1 = [(-1,false); (0,false); (5,true)] in \
+  let l2 = [(1,true)] in \
+  let l3 = l2 @ l1 in \
+  let m1 = of_list l1 in \
+  let m2 = of_list l2 in \
+  let m3 = of_list l3 in \
+  equal (=) m3 (union (fun _k x _y -> Some x) m1 m2)
+*)
 
-(* FBR: add test *)
 let partition p m =
   fold (fun k v (acc_yes, acc_no) ->
       if p k v then
@@ -202,8 +241,13 @@ let partition p m =
       else
         (acc_yes, add k v acc_no)
     ) m (empty, empty)
+(*$T partition
+  let l1 = [(-1,false); (0,false); (5,true)] in \
+  let yes, no = partition (fun k _v -> k < 0) (of_list l1) in \
+  equal (=) yes (of_list [(-1,false)]) && \
+    equal (=) no (of_list (List.tl l1))
+*)
 
-(* FBR: add test *)
 let filter p m =
   fold (fun k v acc ->
       if p k v then
@@ -211,10 +255,13 @@ let filter p m =
       else
         acc
     ) m empty
+(*$T filter
+  let l1 = [(-1,false); (0,false); (5,true)] in \
+  filter (fun k _v -> k = 0) (of_list l1) = of_list [(0,false)]
+*)
 
 exception Found
 
-(* FBR: add test *)
 let exists p m =
   try
     iter (fun k v ->
@@ -223,8 +270,13 @@ let exists p m =
       ) m;
     false
   with Found -> true
+(*$T exists
+  let l1 = [(-1,false); (0,false); (5,true)] in \
+  let m1 = of_list l1 in \
+  exists (fun k _v -> k = 0) m1 && \
+    not (exists (fun k _v -> k = 6) m1)
+*)
 
-(* FBR: add test *)
 let for_all p m =
   try
     iter (fun k v ->
@@ -233,6 +285,11 @@ let for_all p m =
       ) m;
     true
   with Found -> false
+(*$T for_all
+  let l1 = [(-1,false); (0,false); (5,true)] in \
+  let m1 = of_list l1 in \
+  for_all (fun k _v -> k = -1 || k = 0 || k = 5) m1
+*)
 
 (* we order constructors as Empty < Leaf < Branch *)
 let compare cmp t1 t2 =
