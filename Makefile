@@ -19,7 +19,7 @@ uninstall:
 
 clean:
 	obuild clean
-	rm -rf doc
+	rm -rf doc qtest.targets.log
 
 tests:
 	qtest extract ptmap.ml -o unit_tests.ml
