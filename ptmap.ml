@@ -279,8 +279,8 @@ let union f m1 m2 =
     ) m2 m
 (*$T union
   let l1 = [(-1,false); (0,false); (5,true)] in \
-  let l2 = [(0,true)] in \
-  let l3 = [(-1,false); (5,true)] in \
+  let l2 = [(0,true); (6,true)] in \
+  let l3 = [(-1,false); (5,true); (6,true)] in \
   let m1 = of_list l1 in \
   let m2 = of_list l2 in \
   let m3 = of_list l3 in \
