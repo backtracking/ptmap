@@ -191,7 +191,7 @@ let find_opt k m =
 let merge f mx my =
   let mx_keys = List.rev_map fst (bindings mx) in
   let my_keys = List.rev_map fst (bindings my) in
-  let unique_keys = List.sort_uniq (-) (List.rev_append mx_keys my_keys) in
+  let unique_keys = List.sort_uniq Pervasives.compare (List.rev_append mx_keys my_keys) in
   List.fold_left (fun acc k ->
       let maybe_vx = find_opt k mx in
       let maybe_vy = find_opt k my in
@@ -211,7 +211,7 @@ let merge f mx my =
 let union f mx my =
   let mx_keys = List.rev_map fst (bindings mx) in
   let my_keys = List.rev_map fst (bindings my) in
-  let unique_keys = List.sort_uniq (-) (List.rev_append mx_keys my_keys) in
+  let unique_keys = List.sort_uniq Pervasives.compare (List.rev_append mx_keys my_keys) in
   List.fold_left (fun acc k ->
       let maybe_vx = find_opt k mx in
       let maybe_vy = find_opt k my in
