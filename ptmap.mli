@@ -19,56 +19,8 @@
     The following signature is exactly [Map.S with type key = int],
     with the same specifications. *)
 
-type (+'a) t
+include Map.S with type key = int
 
-type key = int
-
-val empty : 'a t
-
-val is_empty : 'a t -> bool
-
-val add : int -> 'a -> 'a t -> 'a t
-
-val find : int -> 'a t -> 'a
-
-val remove : int -> 'a t -> 'a t
-
-val mem :  int -> 'a t -> bool
-
-val iter : (int -> 'a -> unit) -> 'a t -> unit
-
-val map : ('a -> 'b) -> 'a t -> 'b t
-
-val mapi : (int -> 'a -> 'b) -> 'a t -> 'b t
-
-val fold : (int -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
-
-val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
-
-val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
-
-(* functions that must be present to be a drop-in replacement for the stdlib *)
-
-val singleton : key -> 'a -> 'a t
-
-val merge : (key -> 'a option -> 'b option -> 'c option) -> 'a t -> 'b t -> 'c t
-
-val union : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
-
-val for_all : (key -> 'a -> bool) -> 'a t -> bool
-
-val exists : (key -> 'a -> bool) -> 'a t -> bool
-
-val filter : (key -> 'a -> bool) -> 'a t -> 'a t
-
-val partition : (key -> 'a -> bool) -> 'a t -> 'a t * 'a t
-
-val cardinal : 'a t -> int
-
-val bindings : 'a t -> (key * 'a) list
-
-val min_binding : 'a t -> key * 'a
-
-val max_binding : 'a t -> key * 'a
-
-val choose : 'a t -> key * 'a
+(*s Warning: [min_binding] and [max_binding] are linear w.r.t. the
+  size of the map. They are barely more efficient than a
+  straightforward implementation using [fold]. *)
