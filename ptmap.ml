@@ -44,6 +44,8 @@ let rec find k = function
   | Leaf (j,x) -> if k == j then x else raise Not_found
   | Branch (_, m, l, r) -> find k (if zero_bit k m then l else r)
 
+let find_opt k m = try Some (find k m) with Not_found -> None
+
 let lowest_bit x = x land (-x)
 
 let branching_bit p0 p1 = lowest_bit (p0 lxor p1)
@@ -63,17 +65,20 @@ let add k x t =
   let rec ins = function
     | Empty -> Leaf (k,x)
     | Leaf (j,_) as t ->
-	if j == k then Leaf (k,x) else join (k, Leaf (k,x), j, t)
+      if j == k then Leaf (k,x) else join (k, Leaf (k,x), j, t)
     | Branch (p,m,t0,t1) as t ->
-	if match_prefix k p m then
-	  if zero_bit k m then
-	    Branch (p, m, ins t0, t1)
-	  else
-	    Branch (p, m, t0, ins t1)
+      if match_prefix k p m then
+	if zero_bit k m then
+	  Branch (p, m, ins t0, t1)
 	else
-	  join (k, Leaf (k,x), p, t)
+	  Branch (p, m, t0, ins t1)
+      else
+	join (k, Leaf (k,x), p, t)
   in
   ins t
+
+let singleton k v =
+  add k v empty
 
 let branch = function
   | (_,_,Empty,t) -> t
@@ -85,32 +90,37 @@ let remove k t =
     | Empty -> Empty
     | Leaf (j,_) as t -> if k == j then Empty else t
     | Branch (p,m,t0,t1) as t ->
-	if match_prefix k p m then
-	  if zero_bit k m then
-	    branch (p, m, rmv t0, t1)
-	  else
-	    branch (p, m, t0, rmv t1)
+      if match_prefix k p m then
+	if zero_bit k m then
+	  branch (p, m, rmv t0, t1)
 	else
-	  t
+	  branch (p, m, t0, rmv t1)
+      else
+	t
   in
   rmv t
+
+(* utility fun for unit tests *)
+(*$inject
+  let of_list l =
+    List.fold_left (fun acc (k, v) ->
+      add k v acc
+    ) empty l
+*)
+
+let rec cardinal = function
+  | Empty -> 0
+  | Leaf _ -> 1
+  | Branch (_,_,t0,t1) -> cardinal t0 + cardinal t1
+(*$T cardinal
+  cardinal empty = 0
+  cardinal (of_list [(-1,false); (5,true); (0,false)]) = 3
+*)
 
 let rec iter f = function
   | Empty -> ()
   | Leaf (k,x) -> f k x
   | Branch (_,_,t0,t1) -> iter f t0; iter f t1
-
-let rec choose = function
-  | Empty -> raise Not_found
-  | Leaf (k,v) -> (k,v)
-  | Branch (_,_,t0,t1) ->
-    try choose t0
-    with Not_found ->
-      choose t1
-(*$T choose
-  try let _ = choose empty in false with Not_found -> true
-  choose (add 1 true empty) = (1, true)
-*)
 
 let rec map f = function
   | Empty -> Empty
@@ -127,168 +137,76 @@ let rec fold f s accu = match s with
   | Leaf (k,x) -> f k x accu
   | Branch (_,_,t0,t1) -> fold f t0 (fold f t1 accu)
 
-(* utility fun for unit tests *)
-(*$inject
-  let of_list l =
-    List.fold_left (fun acc (k, v) ->
-      add k v acc
-    ) empty l
+let rec for_all p = function
+  | Empty -> true
+  | Leaf (k, v)  -> p k v
+  | Branch (_,_,t0,t1) -> for_all p t0 && for_all p t1
+
+let rec exists p = function
+  | Empty -> false
+  | Leaf (k, v) -> p k v
+  | Branch (_,_,t0,t1) -> exists p t0 || exists p t1
+
+let rec filter pr = function
+  | Empty -> Empty
+  | Leaf (k, v) as t -> if pr k v then t else Empty
+  | Branch (p,m,t0,t1) -> branch (p, m, filter pr t0, filter pr t1)
+
+let partition p s =
+  let rec part (t,f as acc) = function
+    | Empty -> acc
+    | Leaf (k, v) -> if p k v then (add k v t, f) else (t, add k v f)
+    | Branch (_,_,t0,t1) -> part (part acc t0) t1
+  in
+  part (Empty, Empty) s
+
+let rec choose = function
+  | Empty -> raise Not_found
+  | Leaf (k, v) -> (k, v)
+  | Branch (_, _, t0, _) -> choose t0   (* we know that [t0] is non-empty *)
+(*$T choose
+  try let _ = choose empty in false with Not_found -> true
+  choose (add 1 true empty) = (1, true)
 *)
 
-let max_binding m =
-  let init = choose m in
-  fold (fun k' v' ((k, v) as acc) ->
-      if k' > k then
-        (k', v')
-      else
-        acc
-    ) m init
-(*$T max_binding
-  (try let _ = max_binding empty in false with Not_found -> true) = true
-  max_binding (of_list [(-1,false); (5,true); (0,false)]) = (5,true)
-*)
+let split x m =
+  let coll k v (l, b, r) =
+    if k < x then add k v l, b, r
+    else if k > x then l, b, add k v r
+    else l, Some v, r
+  in
+  fold coll m (empty, None, empty)
 
-let min_binding m =
-  let init = choose m in
-  fold (fun k' v' ((k, v) as acc) ->
-      if k' < k then
-        (k', v')
-      else
-        acc
-    ) m init
+let rec min_binding = function
+  | Empty -> raise Not_found
+  | Leaf (k, v) -> (k, v)
+  | Branch (_,_,s,t) ->
+    let (ks, _) as bs = min_binding s in
+    let (kt, _) as bt = min_binding t in
+    if ks < kt then bs else bt
 (*$T min_binding
   (try let _ = min_binding empty in false with Not_found -> true) = true
   min_binding (of_list [(-1,false); (5,true); (0,false)]) = (-1,false)
 *)
 
+let rec max_binding = function
+  | Empty -> raise Not_found
+  | Leaf (k, v) -> (k, v)
+  | Branch (_,_,s,t) ->
+    let (ks, _) as bs = max_binding s in
+    let (kt, _) as bt = max_binding t in
+    if ks > kt then bs else bt
+(*$T max_binding
+  (try let _ = max_binding empty in false with Not_found -> true) = true
+  max_binding (of_list [(-1,false); (5,true); (0,false)]) = (5,true)
+*)
+
 let bindings m =
-  fold (fun k v acc ->
-      (k, v) :: acc
-    ) m []
+  fold (fun k v acc -> (k, v) :: acc) m []
 (*$T bindings
   bindings empty = []
   List.sort Pervasives.compare (bindings (of_list [(-1,false); (5,true); (0,false)])) = \
     [(-1,false); (0,false); (5,true)]
-*)
-
-let cardinal m =
-  fold (fun _k _v acc ->
-      acc + 1
-    ) m 0
-(*$T cardinal
-  cardinal empty = 0
-  cardinal (of_list [(-1,false); (5,true); (0,false)]) = 3
-*)
-
-let singleton k v =
-  add k v empty
-
-let find_opt k m =
-  try Some (find k m)
-  with Not_found -> None
-
-(* FBR: probably far from optimal algorithm *)
-let merge f mx my =
-  let mx_keys = List.rev_map fst (bindings mx) in
-  let my_keys = List.rev_map fst (bindings my) in
-  let unique_keys = List.sort_uniq Pervasives.compare (List.rev_append mx_keys my_keys) in
-  List.fold_left (fun acc k ->
-      let maybe_vx = find_opt k mx in
-      let maybe_vy = find_opt k my in
-      match f k maybe_vx maybe_vy with
-      | None -> acc
-      | Some z -> add k z acc
-    ) empty unique_keys
-(*$T merge
-  let l1 = [(-1,-1); (0,0); (5,4)] in \
-  let l2 = [(5,5)] in \
-  let l3 = [(-1,-1); (0,0); (5,5)] in \
-  equal (=) (of_list l3) \
-    (merge (fun _k x y -> max x y) (of_list l1) (of_list l2))
-*)
-
-(* FBR: probably far from optimal algorithm *)
-let union f mx my =
-  let mx_keys = List.rev_map fst (bindings mx) in
-  let my_keys = List.rev_map fst (bindings my) in
-  let unique_keys = List.sort_uniq Pervasives.compare (List.rev_append mx_keys my_keys) in
-  List.fold_left (fun acc k ->
-      let maybe_vx = find_opt k mx in
-      let maybe_vy = find_opt k my in
-      match maybe_vx, maybe_vy with
-      | None, None -> assert(false)
-      | None, Some vy -> add k vy acc
-      | Some vx, None -> add k vx acc
-      | Some vx, Some vy ->
-        match f k vx vy with
-        | None -> acc
-        | Some vz -> add k vz acc
-    ) empty unique_keys
-(*$T union
-  let l1 = [(-1,false); (0,false); (5,true)] in \
-  let l2 = [(1,true)] in \
-  let l3 = l2 @ l1 in \
-  let m1 = of_list l1 in \
-  let m2 = of_list l2 in \
-  let m3 = of_list l3 in \
-  equal (=) m3 (union (fun _k x _y -> Some x) m1 m2)
-*)
-
-let partition p m =
-  fold (fun k v (acc_yes, acc_no) ->
-      if p k v then
-        (add k v acc_yes, acc_no)
-      else
-        (acc_yes, add k v acc_no)
-    ) m (empty, empty)
-(*$T partition
-  let l1 = [(-1,false); (0,false); (5,true)] in \
-  let yes, no = partition (fun k _v -> k < 0) (of_list l1) in \
-  equal (=) yes (of_list [(-1,false)]) && \
-    equal (=) no (of_list (List.tl l1))
-*)
-
-let filter p m =
-  fold (fun k v acc ->
-      if p k v then
-        add k v acc
-      else
-        acc
-    ) m empty
-(*$T filter
-  let l1 = [(-1,false); (0,false); (5,true)] in \
-  filter (fun k _v -> k = 0) (of_list l1) = of_list [(0,false)]
-*)
-
-exception Found
-
-let exists p m =
-  try
-    iter (fun k v ->
-        if p k v then raise Found
-        else ()
-      ) m;
-    false
-  with Found -> true
-(*$T exists
-  let l1 = [(-1,false); (0,false); (5,true)] in \
-  let m1 = of_list l1 in \
-  exists (fun k _v -> k = 0) m1 && \
-    not (exists (fun k _v -> k = 6) m1)
-*)
-
-let for_all p m =
-  try
-    iter (fun k v ->
-        if not (p k v) then raise Found
-        else ()
-      ) m;
-    true
-  with Found -> false
-(*$T for_all
-  let l1 = [(-1,false); (0,false); (5,true)] in \
-  let m1 = of_list l1 in \
-  for_all (fun k _v -> k = -1 || k = 0 || k = 5) m1
 *)
 
 (* we order constructors as Empty < Leaf < Branch *)
@@ -298,18 +216,18 @@ let compare cmp t1 t2 =
     | Empty, _ -> -1
     | _, Empty -> 1
     | Leaf (k1,x1), Leaf (k2,x2) ->
-	let c = compare k1 k2 in
-	if c <> 0 then c else cmp x1 x2
+      let c = compare k1 k2 in
+      if c <> 0 then c else cmp x1 x2
     | Leaf _, Branch _ -> -1
     | Branch _, Leaf _ -> 1
     | Branch (p1,m1,l1,r1), Branch (p2,m2,l2,r2) ->
-	let c = compare p1 p2 in
-	if c <> 0 then c else
+      let c = compare p1 p2 in
+      if c <> 0 then c else
 	let c = compare m1 m2 in
 	if c <> 0 then c else
-        let c = compare_aux l1 l2 in
-        if c <> 0 then c else
-        compare_aux r1 r2
+          let c = compare_aux l1 l2 in
+          if c <> 0 then c else
+            compare_aux r1 r2
   in
   compare_aux t1 t2
 
@@ -318,7 +236,53 @@ let equal eq t1 t2 =
     | Empty, Empty -> true
     | Leaf (k1,x1), Leaf (k2,x2) -> k1 = k2 && eq x1 x2
     | Branch (p1,m1,l1,r1), Branch (p2,m2,l2,r2) ->
-	p1 = p2 && m1 = m2 && equal_aux l1 l2 && equal_aux r1 r2
+      p1 = p2 && m1 = m2 && equal_aux l1 l2 && equal_aux r1 r2
     | _ -> false
   in
   equal_aux t1 t2
+
+let merge f m1 m2 =
+  let add m k = function None -> m | Some v -> add k v m in
+  (* first consider all bindings in m1 *)
+  let m = fold
+      (fun k1 v1 m -> add m k1 (f k1 (Some v1) (find_opt k1 m2))) m1 empty in
+  (* then bindings in m2 that are not in m1 *)
+  fold (fun k2 v2 m -> if mem k2 m1 then m else add m k2 (f k2 None (Some v2)))
+    m2 m
+(*$T merge
+  let l1 = [(-1,-1); (0,0); (5,4)] in \
+  let l2 = [(5,5)] in \
+  let l3 = [(-1,-1); (0,0); (5,5)] in \
+  equal (=) (of_list l3) \
+    (merge (fun _k x y -> max x y) (of_list l1) (of_list l2))
+*)
+
+let union f m1 m2 =
+  (* first, consider all bindings in m1 or in (m1 inter m2) *)
+  let m =
+    fold (fun k v m ->
+        match find_opt k m2 with
+        | None -> add k v m (* only in m1 *)
+        | Some w ->
+          begin (* in (m1 inter m2) *)
+            match f k v w with
+            | None -> m (* key is dropped *)
+            | Some z -> add k z m
+          end
+      ) m1 empty
+  in
+  (* last, consider all bindings only in m2 *)
+  fold (fun k v m ->
+      match find_opt k m1 with
+      | None -> add k v m (* only in m2 *)
+      | Some _ -> m (* already processed before *)
+    ) m2 m
+(*$T union
+  let l1 = [(-1,false); (0,false); (5,true)] in \
+  let l2 = [(0,true)] in \
+  let l3 = [(-1,false); (5,true)] in \
+  let m1 = of_list l1 in \
+  let m2 = of_list l2 in \
+  let m3 = of_list l3 in \
+  equal (=) m3 (union (fun _ _ _ -> None) m1 m2)
+*)
