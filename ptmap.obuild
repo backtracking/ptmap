@@ -21,4 +21,5 @@ Executable unit_tests
   oflags: -warn-error PU
   src-dir: .
   main-is: unit_tests.ml
-  build-deps: QTest2Lib
+  build-deps: qcheck
+# the qcheck lib is installed by qtest version >= 2.2
