@@ -46,6 +46,42 @@ let rec find k = function
 
 let find_opt k m = try Some (find k m) with Not_found -> None
 
+let rec find_first_opt f = function
+  | Empty -> None
+  | Leaf (j,x) -> if f j then Some (j,x) else None
+  | Branch (_, _, l, r) ->
+    match find_first_opt f l, find_first_opt f r with
+    | Some (lk,lv) , Some (rk,rv) -> if lk < rk then Some (lk,lv) else Some (rk,rv)
+    | Some v, None | None, Some v -> Some v
+    | None, None -> None
+
+let rec find_first f = function
+  | Empty -> raise Not_found
+  | Leaf (j,x) -> if f j then (j,x) else raise Not_found
+  | Branch (_, _, l, r) ->
+    match find_first_opt f l, find_first_opt f r with
+    | Some (lk,lv) , Some (rk,rv) -> if lk < rk then (lk,lv) else (rk,rv)
+    | Some v, None | None, Some v -> v
+    | None, None -> raise Not_found
+
+let rec find_last_opt f = function
+  | Empty -> None
+  | Leaf (j,x) -> if f j then Some (j,x) else None
+  | Branch (_, _, l, r) ->
+    match find_last_opt f l, find_last_opt f r with
+    | Some (lk,lv) , Some (rk,rv) -> if lk > rk then Some (lk,lv) else Some (rk,rv)
+    | Some v, None | None, Some v -> Some v
+    | None, None -> None
+
+let rec find_last f = function
+  | Empty -> raise Not_found
+  | Leaf (j,x) -> if f j then (j,x) else raise Not_found
+  | Branch (_, _, l, r) ->
+    match find_last_opt f l, find_last_opt f r with
+    | Some (lk,lv) , Some (rk,rv) -> if lk > rk then (lk,lv) else (rk,rv)
+    | Some v, None | None, Some v -> v
+    | None, None -> raise Not_found
+
 let lowest_bit x = x land (-x)
 
 let branching_bit p0 p1 = lowest_bit (p0 lxor p1)
@@ -169,6 +205,11 @@ let rec choose = function
   choose (add 1 true empty) = (1, true)
 *)
 
+let rec choose_opt = function
+  | Empty -> None
+  | Leaf (k, v) -> Some (k, v)
+  | Branch (_, _, t0, _) -> choose_opt t0   (* we know that [t0] is non-empty *)
+
 let split x m =
   let coll k v (l, b, r) =
     if k < x then add k v l, b, r
@@ -189,6 +230,17 @@ let rec min_binding = function
   min_binding (of_list [(-1,false); (5,true); (0,false)]) = (-1,false)
 *)
 
+let rec min_binding_opt = function
+  | Empty -> None
+  | Leaf (k, v) -> Some (k, v)
+  | Branch (_,_,s,t) ->
+    match (min_binding_opt s, min_binding_opt t) with
+    | (None, None) -> None
+    | (None, bt) -> bt
+    | (bs, None) -> bs
+    | ((Some (ks, _) as bs), (Some (kt, _) as bt)) ->
+      if ks < kt then bs else bt
+
 let rec max_binding = function
   | Empty -> raise Not_found
   | Leaf (k, v) -> (k, v)
@@ -200,6 +252,17 @@ let rec max_binding = function
   (try let _ = max_binding empty in false with Not_found -> true) = true
   max_binding (of_list [(-1,false); (5,true); (0,false)]) = (5,true)
 *)
+
+let rec max_binding_opt = function
+  | Empty -> None
+  | Leaf (k, v) -> Some (k, v)
+  | Branch (_,_,s,t) ->
+    match (max_binding_opt s, max_binding_opt t) with
+    | (None, None) -> None
+    | (None, bt) -> bt
+    | (bs, None) -> bs
+    | ((Some (ks, _) as bs), (Some (kt, _) as bt)) ->
+      if ks > kt then bs else bt
 
 let bindings m =
   fold (fun k v acc -> (k, v) :: acc) m []
