@@ -12,12 +12,12 @@ Library ptmap
   src-dir: .
   modules: Ptmap
 
-Executable test
+Test test
   oflags: -warn-error PU
   src-dir: .
   main-is: test.ml
 
-Executable unit_tests
+Test unit_tests
   oflags: -warn-error PU
   src-dir: .
   main-is: unit_tests.ml
