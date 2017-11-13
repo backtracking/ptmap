@@ -349,3 +349,8 @@ let union f m1 m2 =
   let m3 = of_list l3 in \
   equal (=) m3 (union (fun _ _ _ -> None) m1 m2)
 *)
+
+let update x f m =
+  match f (find_opt x m) with
+  | None -> remove x m
+  | Some z -> add x z m
