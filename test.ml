@@ -44,11 +44,32 @@ let test_find_last_opt =
   | Some (3, v) -> assert true
   | _ -> assert false
 
+let test_update_remove =
+  let m = Ptmap.update 2 (fun _ -> None) (list_to_map [3; 1; 2; 4; 6; 5]) in
+  match Ptmap.find_opt 2 m with
+  | None -> assert true
+  | _ -> assert false
+
+let test_update_add =
+  let m = Ptmap.update 2 (fun _ -> Some true) (list_to_map [3; 1; 4; 6; 5]) in
+  match Ptmap.find_opt 2 m with
+  | Some true -> assert true
+  | _ -> assert true
+
+let test_update_update =
+  let m = Ptmap.update 2 (fun _ -> Some false) (list_to_map [3; 1; 2; 4; 6; 5]) in
+  match Ptmap.find_opt 2 m with
+  | Some false -> assert true
+  | _ -> assert true
+
 let main () =
   test Ptmap.empty Ptmap.add Ptmap.mem;
   test_find_first;
   test_find_first_opt;
   test_find_last;
-  test_find_last_opt
+  test_find_last_opt;
+  test_update_remove;
+  test_update_add;
+  test_update_update
 
 let () = main ()
