@@ -62,6 +62,33 @@ let test_update_update =
   | Some false -> assert true
   | _ -> assert true
 
+let test_to_seq =
+  let o = [3; 1; 2; 4; 6; 5] in
+  let l = List.of_seq (Ptmap.to_seq (list_to_map o)) in
+  assert (List.length l = List.length o);
+  assert (List.for_all (fun (k,v) -> List.exists (fun ok -> ok = k) o) l)
+
+let test_to_seq_from =
+  let o = [3; 1; 2; 4; 6; 5] in
+  let r = [3; 4; 5; 6] in
+  let l = List.of_seq (Ptmap.to_seq_from 3 (list_to_map o)) in
+  assert (List.length l = List.length r);
+  assert (List.for_all (fun (k,v) -> List.exists (fun ok -> ok = k) r) l)
+
+let test_of_seq =
+  let o = [3; 1; 2; 4; 6; 5] in
+  let m = Ptmap.of_seq (List.to_seq (List.map (fun v -> (v, true)) o)) in
+  assert (Ptmap.cardinal m = List.length o);
+  assert (Ptmap.for_all (fun k v -> List.exists (fun ok -> ok = k) o) m)
+
+let test_add_seq =
+  let o = [3; 1; 6; 5] in
+  let a = [2; 4] in
+  let r = [3; 1; 2; 4; 6; 5] in
+  let m = Ptmap.add_seq (List.to_seq (List.map (fun v -> (v, true)) a)) (list_to_map o) in
+  assert (Ptmap.cardinal m = List.length r);
+  assert (Ptmap.for_all (fun k v -> List.exists (fun ok -> ok = k) r) m)
+
 let main () =
   test Ptmap.empty Ptmap.add Ptmap.mem;
   test_find_first;
@@ -70,6 +97,9 @@ let main () =
   test_find_last_opt;
   test_update_remove;
   test_update_add;
-  test_update_update
+  test_update_update;
+  test_to_seq;
+  test_to_seq_from;
+  test_of_seq
 
 let () = main ()
