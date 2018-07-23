@@ -354,3 +354,25 @@ let update x f m =
   match f (find_opt x m) with
   | None -> remove x m
   | Some z -> add x z m
+
+let to_seq m =
+  let rec prepend_seq m s = match m with
+    | Empty -> s
+    | Leaf (k, v) -> fun () -> Seq.Cons((k,v), s)
+    | Branch (_, _, l, r) -> prepend_seq l (prepend_seq r s)
+  in
+  prepend_seq m Seq.empty
+
+let to_seq_from k m =
+  let rec prepend_seq m s = match m with
+    | Empty -> s
+    | Leaf (key, v) -> if key >= k then fun () -> Seq.Cons((key,v), s) else s
+    | Branch (_, _, l, r) -> prepend_seq l (prepend_seq r s)
+  in
+  prepend_seq m Seq.empty
+
+let add_seq s m =
+  Seq.fold_left (fun m (k, v) -> add k v m) m s
+
+let of_seq s =
+  Seq.fold_left (fun m (k, v) -> add k v m) empty s
