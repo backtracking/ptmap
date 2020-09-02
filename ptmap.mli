@@ -13,13 +13,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Maps over integers implemented as Patricia trees.  The following
-   signature is a subset of [Map.S with type key = int], with the same
-   specifications (not repeated here).
+(** Maps over integers implemented as Patricia trees.
 
-   Warning: [min_binding] and [max_binding] are linear w.r.t. the
-   size of the map. They are barely more efficient than a
-   straightforward implementation using [fold].
+   The following signature is a subset of [Map.S with type key = int],
+   with the same specifications (not repeated here) unless specified
+   otherwise.
+
+   These are little-endian Patricia trees, so there is no efficient
+   ordering of keys within the structure. Consequently,
+   - [min/max_binding], [find_first/last] are rather inefficient (linear)
+   - [iter], [fold] *do not* iterate in the key order
+   - [bindings] is *not sorted* by keys
 *)
 
 type key = int

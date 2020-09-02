@@ -13,8 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(*i $Id$ i*)
-
 (*s Maps of integers implemented as Patricia trees, following Chris
     Okasaki and Andrew Gill's paper {\em Fast Mergeable Integer Maps}
     ({\tt\small http://www.cs.columbia.edu/\~{}cdo/papers.html\#ml98maps}).
@@ -46,12 +44,15 @@ let rec find k = function
 
 let find_opt k m = try Some (find k m) with Not_found -> None
 
+(* Note: find_first/last have to look in both subtrees
+   as these are little-endian Patricia trees *)
 let rec find_first_opt f = function
   | Empty -> None
   | Leaf (j,x) -> if f j then Some (j,x) else None
   | Branch (_, _, l, r) ->
     match find_first_opt f l, find_first_opt f r with
-    | Some (lk,lv) , Some (rk,rv) -> if lk < rk then Some (lk,lv) else Some (rk,rv)
+    | Some (lk,lv) , Some (rk,rv) ->
+        if lk < rk then Some (lk,lv) else Some (rk,rv)
     | Some v, None | None, Some v -> Some v
     | None, None -> None
 
@@ -69,7 +70,8 @@ let rec find_last_opt f = function
   | Leaf (j,x) -> if f j then Some (j,x) else None
   | Branch (_, _, l, r) ->
     match find_last_opt f l, find_last_opt f r with
-    | Some (lk,lv) , Some (rk,rv) -> if lk > rk then Some (lk,lv) else Some (rk,rv)
+    | Some (lk,lv) , Some (rk,rv) ->
+        if lk > rk then Some (lk,lv) else Some (rk,rv)
     | Some v, None | None, Some v -> Some v
     | None, None -> None
 
@@ -136,22 +138,10 @@ let remove k t =
   in
   rmv t
 
-(* utility fun for unit tests *)
-(*$inject
-  let of_list l =
-    List.fold_left (fun acc (k, v) ->
-      add k v acc
-    ) empty l
-*)
-
 let rec cardinal = function
   | Empty -> 0
   | Leaf _ -> 1
   | Branch (_,_,t0,t1) -> cardinal t0 + cardinal t1
-(*$T cardinal
-  cardinal empty = 0
-  cardinal (of_list [(-1,false); (5,true); (0,false)]) = 3
-*)
 
 let rec iter f = function
   | Empty -> ()
@@ -205,10 +195,6 @@ let rec choose = function
   | Empty -> raise Not_found
   | Leaf (k, v) -> (k, v)
   | Branch (_, _, t0, _) -> choose t0   (* we know that [t0] is non-empty *)
-(*$T choose
-  try let _ = choose empty in false with Not_found -> true
-  choose (add 1 true empty) = (1, true)
-*)
 
 let rec choose_opt = function
   | Empty -> None
@@ -230,20 +216,16 @@ let rec min_binding = function
     let (ks, _) as bs = min_binding s in
     let (kt, _) as bt = min_binding t in
     if ks < kt then bs else bt
-(*$T min_binding
-  (try let _ = min_binding empty in false with Not_found -> true) = true
-  min_binding (of_list [(-1,false); (5,true); (0,false)]) = (-1,false)
-*)
 
 let rec min_binding_opt = function
   | Empty -> None
   | Leaf (k, v) -> Some (k, v)
   | Branch (_,_,s,t) ->
     match (min_binding_opt s, min_binding_opt t) with
-    | (None, None) -> None
-    | (None, bt) -> bt
-    | (bs, None) -> bs
-    | ((Some (ks, _) as bs), (Some (kt, _) as bt)) ->
+    | None, None -> None
+    | None, bt -> bt
+    | bs, None -> bs
+    | (Some (ks, _) as bs), (Some (kt, _) as bt) ->
       if ks < kt then bs else bt
 
 let rec max_binding = function
@@ -253,29 +235,20 @@ let rec max_binding = function
     let (ks, _) as bs = max_binding s in
     let (kt, _) as bt = max_binding t in
     if ks > kt then bs else bt
-(*$T max_binding
-  (try let _ = max_binding empty in false with Not_found -> true) = true
-  max_binding (of_list [(-1,false); (5,true); (0,false)]) = (5,true)
-*)
 
 let rec max_binding_opt = function
   | Empty -> None
   | Leaf (k, v) -> Some (k, v)
   | Branch (_,_,s,t) ->
-    match (max_binding_opt s, max_binding_opt t) with
-    | (None, None) -> None
-    | (None, bt) -> bt
-    | (bs, None) -> bs
-    | ((Some (ks, _) as bs), (Some (kt, _) as bt)) ->
+    match max_binding_opt s, max_binding_opt t with
+    | None, None -> None
+    | None, bt -> bt
+    | bs, None -> bs
+    | (Some (ks, _) as bs), (Some (kt, _) as bt) ->
       if ks > kt then bs else bt
 
 let bindings m =
   fold (fun k v acc -> (k, v) :: acc) m []
-(*$T bindings
-  bindings empty = []
-  List.sort Pervasives.compare (bindings (of_list [(-1,false); (5,true); (0,false)])) = \
-    [(-1,false); (0,false); (5,true)]
-*)
 
 (* we order constructors as Empty < Leaf < Branch *)
 let compare cmp t1 t2 =
@@ -317,13 +290,6 @@ let merge f m1 m2 =
   (* then bindings in m2 that are not in m1 *)
   fold (fun k2 v2 m -> if mem k2 m1 then m else add m k2 (f k2 None (Some v2)))
     m2 m
-(*$T merge
-  let l1 = [(-1,-1); (0,0); (5,4)] in \
-  let l2 = [(5,5)] in \
-  let l3 = [(-1,-1); (0,0); (5,5)] in \
-  equal (=) (of_list l3) \
-    (merge (fun _k x y -> max x y) (of_list l1) (of_list l2))
-*)
 
 let union f m1 m2 =
   (* first, consider all bindings in m1 or in (m1 inter m2) *)
@@ -345,15 +311,6 @@ let union f m1 m2 =
       | None -> add k v m (* only in m2 *)
       | Some _ -> m (* already processed before *)
     ) m2 m
-(*$T union
-  let l1 = [(-1,false); (0,false); (5,true)] in \
-  let l2 = [(0,true); (6,true)] in \
-  let l3 = [(-1,false); (5,true); (6,true)] in \
-  let m1 = of_list l1 in \
-  let m2 = of_list l2 in \
-  let m3 = of_list l3 in \
-  equal (=) m3 (union (fun _ _ _ -> None) m1 m2)
-*)
 
 let update x f m =
   match f (find_opt x m) with

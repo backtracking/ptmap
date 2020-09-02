@@ -2,6 +2,8 @@
 # unreleased
   - removed dependency to stdlib-shims
   - added filter_map for OCaml 4.11 (contribution of rwmjones)
+  - moved tests from ptmap.ml to test.ml
+  - document the difference wrt Map.S specs (issue #11)
 
 # 1.0.1
   - switch from obuild to dune
