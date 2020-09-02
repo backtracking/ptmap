@@ -59,6 +59,8 @@ val exists: (key -> 'a -> bool) -> 'a t -> bool
 
 val filter: (key -> 'a -> bool) -> 'a t -> 'a t
 
+val filter_map: (key -> 'a -> 'b option) -> 'a t -> 'b t
+
 val partition: (key -> 'a -> bool) -> 'a t -> 'a t * 'a t
 
 val cardinal: 'a t -> int
