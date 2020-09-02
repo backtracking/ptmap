@@ -55,7 +55,7 @@ let rec find_first_opt f = function
     | Some v, None | None, Some v -> Some v
     | None, None -> None
 
-let rec find_first f = function
+let find_first f = function
   | Empty -> raise Not_found
   | Leaf (j,x) -> if f j then (j,x) else raise Not_found
   | Branch (_, _, l, r) ->
@@ -73,7 +73,7 @@ let rec find_last_opt f = function
     | Some v, None | None, Some v -> Some v
     | None, None -> None
 
-let rec find_last f = function
+let find_last f = function
   | Empty -> raise Not_found
   | Leaf (j,x) -> if f j then (j,x) else raise Not_found
   | Branch (_, _, l, r) ->

@@ -1,0 +1,9 @@
+(library
+ (public_name ptmap)
+ (modules ptmap)
+ (libraries stdlib-shims))
+
+(test
+ (name test)
+ (modules test)
+ (libraries ptmap))
