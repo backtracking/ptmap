@@ -25,6 +25,13 @@ let () =
   Random.init seed;
   for _i = 0 to 999 do assert (mem (Random.int max_int) s) done
 
+(* the bug from "QuickChecking Patricia Trees" is fixed *)
+let () =
+  let m1 = add min_int true (add 0 true empty) in
+  let m2 = add min_int true (add 1 true empty) in
+  let m = union (fun _ _ _ -> Some true) m1 m2 in
+  assert (cardinal m = 3)
+
 let interval lo hi =
   let rec build k m = if k > hi then m else build (k+1) (add k true m) in
   build lo empty
