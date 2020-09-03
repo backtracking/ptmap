@@ -1,12 +1,11 @@
 
 # 2.0.5
-  - add `filter_map` (rwmjones)
-  - move tests from ptmap.ml to test.ml
   - document the difference wrt `Map.S` specs (issue #11)
   - switch from obuild to dune and to opam 2.0
-  - now uses `stdlib-shims`
-  - no more use of qtest
+  - now uses `stdlib-shims` and `seq`
+  - no more use of qtest, move tests from ptmap.ml to test.ml
   - add `update` (Andy Li)
+  - add `filter_map` (rwmjones)
 
 # 2.0.0
   - added missing functions to conform to `Map.S` (Francois Berenger)
