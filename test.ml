@@ -125,33 +125,39 @@ let () =
   | Some false -> assert true
   | _ -> assert true
 
+let list_of_seq s = Seq.fold_left (fun l b -> b :: l) [] s
+let list_to_seq l =
+  let rec aux l () = match l with
+    | [] -> Seq.Nil | x :: tail -> Seq.Cons (x, aux tail) in
+  aux l
+
 (* to_seq *)
 let () =
   let o = [3; 1; 2; 4; 6; 5] in
-  let l = List.of_seq (to_seq (list_to_map o)) in
+  let l = list_of_seq (to_seq (list_to_map o)) in
   assert (List.length l = List.length o);
-  assert (List.for_all (fun (k,_) -> List.exists (fun ok -> ok = k) o) l)
+  assert (List.for_all (fun (k,_) -> List.exists ((=) k) o) l)
 
 (* to_seq_from *)
 let () =
   let o = [3; 1; 2; 4; 6; 5] in
   let r = [3; 4; 5; 6] in
-  let l = List.of_seq (to_seq_from 3 (list_to_map o)) in
+  let l = list_of_seq (to_seq_from 3 (list_to_map o)) in
   assert (List.length l = List.length r);
-  assert (List.for_all (fun (k,_) -> List.exists (fun ok -> ok = k) r) l)
+  assert (List.for_all (fun (k,_) -> List.exists ((=) k) r) l)
 
 (* of_seq *)
 let () =
   let o = [3; 1; 2; 4; 6; 5] in
-  let m = of_seq (List.to_seq (List.map (fun v -> (v, true)) o)) in
+  let m = of_seq (list_to_seq (List.map (fun v -> (v, true)) o)) in
   assert (cardinal m = List.length o);
-  assert (for_all (fun k _ -> List.exists (fun ok -> ok = k) o) m)
+  assert (for_all (fun k _ -> List.exists ((=) k) o) m)
 
 (* add_seq *)
 let () =
   let o = [3; 1; 6; 5] in
   let a = [2; 4] in
   let r = [3; 1; 2; 4; 6; 5] in
-  let m = add_seq (List.to_seq (List.map (fun v -> (v, true)) a)) (list_to_map o) in
+  let m = add_seq (list_to_seq (List.map (fun v -> (v, true)) a)) (list_to_map o) in
   assert (cardinal m = List.length r);
-  assert (for_all (fun k _ -> List.exists (fun ok -> ok = k) r) m)
+  assert (for_all (fun k _ -> List.exists ((=) k) r) m)
