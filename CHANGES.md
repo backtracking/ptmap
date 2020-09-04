@@ -2,6 +2,7 @@
 # 2.0.5
   - switch from obuild to dune and to opam 2.0
   - document the difference wrt `Map.S` specs (issue #11)
+  - more efficient implementation of `union` (issue #7)
   - add `update` (Andy Li)
   - add `filter_map` (rwmjones)
   - no more use of qtest, move tests from ptmap.ml to test.ml

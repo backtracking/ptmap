@@ -291,31 +291,41 @@ let merge f m1 m2 =
   fold (fun k2 v2 m -> if mem k2 m1 then m else add m k2 (f k2 None (Some v2)))
     m2 m
 
-let union f m1 m2 =
-  (* first, consider all bindings in m1 or in (m1 inter m2) *)
-  let m =
-    fold (fun k v m ->
-        match find_opt k m2 with
-        | None -> add k v m (* only in m1 *)
-        | Some w ->
-          begin (* in (m1 inter m2) *)
-            match f k v w with
-            | None -> m (* key is dropped *)
-            | Some z -> add k z m
-          end
-      ) m1 empty
-  in
-  (* last, consider all bindings only in m2 *)
-  fold (fun k v m ->
-      match find_opt k m1 with
-      | None -> add k v m (* only in m2 *)
-      | Some _ -> m (* already processed before *)
-    ) m2 m
-
 let update x f m =
   match f (find_opt x m) with
   | None -> remove x m
   | Some z -> add x z m
+
+let unsigned_lt n m = n >= 0 && (m < 0 || n < m)
+
+let rec union f = function
+  | Empty, t  -> t
+  | t, Empty  -> t
+  | Leaf (k,v1), t ->
+      update k (function None -> Some v1 | Some v2 -> f k v1 v2) t
+  | t, Leaf (k,v2) ->
+      update k (function None -> Some v2 | Some v1 -> f k v1 v2) t
+  | (Branch (p,m,s0,s1) as s), (Branch (q,n,t0,t1) as t) ->
+      if m == n && match_prefix q p m then
+	(* The trees have the same prefix. Merge the subtrees. *)
+	branch (p, m, union f (s0,t0), union f (s1,t1))
+      else if unsigned_lt m n && match_prefix q p m then
+	(* [q] contains [p]. Merge [t] with a subtree of [s]. *)
+	if zero_bit q m then
+	  branch (p, m, union f (s0,t), s1)
+        else
+	  branch (p, m, s0, union f (s1,t))
+      else if unsigned_lt n m && match_prefix p q n then
+	(* [p] contains [q]. Merge [s] with a subtree of [t]. *)
+	if zero_bit p n then
+	  branch (q, n, union f (s,t0), t1)
+	else
+	  branch (q, n, t0, union f (s,t1))
+      else
+	(* The prefixes disagree. *)
+	join (p, s, q, t)
+
+let union f s t = union f (s,t)
 
 let to_seq m =
   let rec prepend_seq m s = match m with
